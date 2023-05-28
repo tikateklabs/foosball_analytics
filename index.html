@@ -292,32 +292,39 @@
 
 
         function finishGame() {
-            // Convert match details to CSV
-            var csvContent = 'data:text/csv;charset=utf-8,';
-            csvContent += 'Team,Player 1,Player 2,Goals,Saves\n';
-            csvContent += team1Name + ',' + team1Player1 + ',' + team1Player2 + ',' + goals['team1'] + ',' + saves['team1'] + '\n';
-            csvContent += team2Name + ',' + team2Player1 + ',' + team2Player2 + ',' + goals['team2'] + ',' + saves['team2'] + '\n';
+        // Convert match details and commentary to CSV
+        var csvContent = 'data:text/csv;charset=utf-8,';
+        csvContent += 'Team,Player 1,Player 2,Goals,Saves,Commentary\n';
+        csvContent += team1Name + ',' + team1Player1 + ',' + team1Player2 + ',' + goals['team1'] + ',' + saves['team1'] + ',\n';
+        csvContent += team2Name + ',' + team2Player1 + ',' + team2Player2 + ',' + goals['team2'] + ',' + saves['team2'] + ',\n';
 
-            // Format timestamp for filename
-            var timestamp = new Date();
-            var formattedTimestamp = timestamp.getFullYear() + '-' + (timestamp.getMonth() + 1) + '-' + timestamp.getDate() +
-                '_' + timestamp.getHours() + '-' + timestamp.getMinutes() + '-' + timestamp.getSeconds();
-
-            // Format team names for filename
-            var formattedTeam1Name = team1Name.replace(/\s+/g, '_');
-            var formattedTeam2Name = team2Name.replace(/\s+/g, '_');
-
-            // Create filename
-            var filename = 'match_details_' + formattedTeam1Name + '_vs_' + formattedTeam2Name + '_' + formattedTimestamp + '.csv';
-
-            // Download CSV file
-            var encodedUri = encodeURI(csvContent);
-            var link = document.createElement('a');
-            link.setAttribute('href', encodedUri);
-            link.setAttribute('download', filename);
-            document.body.appendChild(link); // Required for Firefox
-            link.click();
+        // Add commentary to CSV
+        for (var i = 0; i < commentary.length; i++) {
+            var commentaryItem = commentary[i];
+            var row = (i + 1) + ',' + commentaryItem.phrase + '\n';
+            csvContent += row;
         }
+
+        // Format timestamp for filename
+        var timestamp = new Date();
+        var formattedTimestamp = timestamp.getFullYear() + '-' + (timestamp.getMonth() + 1) + '-' + timestamp.getDate() +
+            '_' + timestamp.getHours() + '-' + timestamp.getMinutes() + '-' + timestamp.getSeconds();
+
+        // Format team names for filename
+        var formattedTeam1Name = team1Name.replace(/\s+/g, '_');
+        var formattedTeam2Name = team2Name.replace(/\s+/g, '_');
+
+        // Create filename
+        var filename = 'match_details_' + formattedTeam1Name + '_vs_' + formattedTeam2Name + '_' + formattedTimestamp + '.csv';
+
+        // Download CSV file
+        var encodedUri = encodeURI(csvContent);
+        var link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', filename);
+        document.body.appendChild(link); // Required for Firefox
+        link.click();
+    }
 
     </script>
     <div class="footer">
