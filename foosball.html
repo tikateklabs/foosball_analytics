@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Foosball Live Commentary and Analytics</title>
+    <style>
+        #event-buttons button, #start-game-button, #download-button {
+            display: block;
+            width: 200px;
+            height: 50px;
+            margin: 5px 0;
+        }
+        .footer {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            background-color: #282828;
+            color: white;
+            text-align: center;
+            padding: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Foosball Live Commentary and Analytics</h1>
+    <div>
+        Game Type:
+        <select id="game-type" onchange="changeGameType()">
+            <option value="2-player">2 Player</option>
+            <option value="4-player">4 Player</option>
+        </select>
+    </div>
+    <br />
+    <div>
+        Team 1 Name: <input type="text" id="team1-name" oninput="updateTeamName('team1')" /><br />
+        Team 2 Name: <input type="text" id="team2-name" oninput="updateTeamName('team2')" /><br />
+    </div>
+    <div id="player-inputs"></div>
+    <br />
+    <button id="start-game-button" onclick="startGame()">Start Game</button>
+    <div id="event-buttons"></div>
+    <br />
+    <button id="download-button" onclick="finishGame()">Finish Game & Download Details</button>
+    <br />
+    <h2>Commentary</h2>
+    <div id="commentary"></div>
+    <br />
+    <h2>Analytics</h2>
+    <div id="analytics"></div>
+
+
+    <script>
+        var gameType = '2-player';
+        var possession = 'team1';
+        var team1Name = 'Team 1';
+        var team2Name = 'Team 2';
+        var team1Player1, team2Player1, team1Player2, team2Player2;
+        var events = [];
+        var commentary = [];
+        var goals = { 'team1': 0, 'team2': 0 };
+        var saves = { 'team1': 0, 'team2': 0 };
+        var eventPlayers = { 'goal': '', 'save': '' };
+
+        window.onload = function() {
+            changeGameType();
+        }
+
+        function changeGameType() {
+            var gameTypeSelect = document.getElementById('game-type');
+            gameType = gameTypeSelect.value;
+            var playerInputsDiv = document.getElementById('player-inputs');
+            playerInputsDiv.innerHTML = '';
+
+            if (gameType === '2-player') {
+                var inputHTML = '';
+                inputHTML += 'Team 1 Player: <input type="text" id="team1-player1" oninput="updatePlayerName(\'team1-player1\')" /><br />';
+                inputHTML += 'Team 2 Player: <input type="text" id="team2-player1" oninput="updatePlayerName(\'team2-player1\')" /><br />';
+                playerInputsDiv.innerHTML = inputHTML;
+            } else {
+                var inputHTML = '';
+                inputHTML += 'Team 1 Attacking Player: <input type="text" id="team1-player1" oninput="updatePlayerName(\'team1-player1\')" /><br />';
+                inputHTML += 'Team 1 Defending Player: <input type="text" id="team1-player2" oninput="updatePlayerName(\'team1-player2\')" /><br />';
+                inputHTML += 'Team 2 Attacking Player: <input type="text" id="team2-player1" oninput="updatePlayerName(\'team2-player1\')" /><br />';
+                inputHTML += 'Team 2 Defending Player: <input type="text" id="team2-player2" oninput="updatePlayerName(\'team2-player2\')" /><br />';
+                playerInputsDiv.innerHTML = inputHTML;
+            }
+
+            generateEventButtons();
+        }
+
+        function updateTeamName(team) {
+            if (team === 'team1') {
+                team1Name = document.getElementById('team1-name').value || 'Team 1';
+            } else if (team === 'team2') {
+                team2Name = document.getElementById('team2-name').value || 'Team 2';
+            }
+            generateEventButtons();
+        }
+
+        function updatePlayerName(player) {
+            var playerElement = document.getElementById(player);
+            var playerName = playerElement.value || 'Player';
+
+            var eventButtonsDiv = document.getElementById('event-buttons');
+            var eventButtons = eventButtonsDiv.getElementsByTagName('button');
+
+            for (var i = 0; i < eventButtons.length; i++) {
+                var eventButton = eventButtons[i];
+                var buttonId = eventButton.id;
+                var buttonParts = buttonId.split('-');
+                var team = buttonParts[0];
+                var playerRole = buttonParts[1];
+                var eventType = buttonParts[2];
+
+                if (team + '-' + playerRole === player) {
+                    var buttonTeamName = team === 'team1' ? team1Name : team2Name;
+                    var buttonPlayerRole = playerRole === 'player1' ? ' Player 1' : ' Player 2';
+
+                    if (gameType === '4-player') {
+                        buttonPlayerRole = playerRole === 'player1' ? ' Attacking Player' : ' Defending Player';
+                    }
+
+                    eventButton.innerText = buttonTeamName + buttonPlayerRole + ' (' + playerName + ') ' + eventType.charAt(0).toUpperCase() + eventType.slice(1);
+                }
+            }
+        }
+
+        function generateEventButtons() {
+            var eventButtonsDiv = document.getElementById('event-buttons');
+            eventButtonsDiv.innerHTML = '';
+
+            var events = ['goal', 'save'];
+            var playerRoles = ['player1', 'player2'];
+
+            if (gameType === '2-player') {
+                playerRoles = playerRoles.slice(0, 1);
+            }
+
+            events.forEach(function(event) {
+                var eventButtonsDiv = document.createElement('div');
+                eventButtonsDiv.id = event + '-buttons';
+                eventButtonsDiv.innerHTML = `<h3>${event.charAt(0).toUpperCase() + event.slice(1)} Events</h3>`;
+
+                playerRoles.forEach(function(player) {
+                    ['team1', 'team2'].forEach(function(team) {
+                        var eventButton = document.createElement('button');
+                        eventButton.id = team + '-' + player + '-' + event;
+                        eventButton.innerText = (team === 'team1' ? team1Name : team2Name) + ' ' + player.slice(0, -1) + ' ' + event.charAt(0).toUpperCase() + event.slice(1);
+                        eventButton.addEventListener('click', function() {
+                            eventPlayers[event] = team + '-' + player;
+                            recordEvent(event);
+                        });
+                        eventButtonsDiv.appendChild(eventButton);
+                    });
+                });
+
+                document.getElementById('event-buttons').appendChild(eventButtonsDiv);
+            });
+        }
+
+        function recordEvent(event) {
+            team1Player1 = document.getElementById('team1-player1').value || 'Player 1';
+            team2Player1 = document.getElementById('team2-player1').value || 'Player 2';
+            team1Player2 = document.getElementById('team1-player2') ? document.getElementById('team1-player2').value : 'Player 3';
+            team2Player2 = document.getElementById('team2-player2') ? document.getElementById('team2-player2').value : 'Player 4';
+
+            var playerTeams = { 'team1-player1': team1Player1, 'team2-player1': team2Player1, 'team1-player2': team1Player2, 'team2-player2': team2Player2 };
+            var timestamp = new Date();
+            var eventPlayer = playerTeams[eventPlayers[event]];
+            var eventTeam = eventPlayers[event].slice(0, 5);
+            var eventPhrase = '';
+
+            if (event === 'goal') {
+                goals[eventTeam]++;
+                var goalPhrases = [
+                    `What a goal by ${eventPlayer}! ${eventPlayer} scores with precision.`,
+                    `Incredible goal! ${eventPlayer} finds the back of the net for ${eventTeam === 'team1' ? team1Name : team2Name}!`,
+                    `Goal! ${eventPlayer} puts the ball in the net, leaving the opposing team stunned.`,
+                    `Superb finish by ${eventPlayer}! The crowd goes wild!`,
+                    `A clinical strike by ${eventPlayer}! The goalkeeper had no chance!`,
+                    `Spectacular goal! ${eventPlayer} showcases exceptional skill and accuracy.`,
+                    `Fantastic goal! ${eventPlayer} leaves everyone in awe.`,
+                    `A thunderous strike by ${eventPlayer}! The ball rockets into the net.`,
+                    `Brilliant goal! ${eventPlayer} dribbles past defenders and scores!`,
+                    `Mesmerizing goal by ${eventPlayer}! It's a thing of beauty.`
+                ];
+                eventPhrase = goalPhrases[Math.floor(Math.random() * goalPhrases.length)];
+
+                // The other team now starts the game again
+                    var otherTeam = eventTeam === 'team1' ? 'team2' : 'team1';
+                    var gameRestartPhrases = [
+                        `The other team, ${otherTeam === 'team1' ? team1Name : team2Name}, now has the chance to retaliate.`,
+                        `After conceding the goal, ${otherTeam === 'team1' ? team1Name : team2Name} regains possession and starts the game.`,
+                        `With the goal scored, the game restarts with ${otherTeam === 'team1' ? team1Name : team2Name} in control of the ball.`,
+                        `The opposing team, ${otherTeam === 'team1' ? team1Name : team2Name}, now takes the kickoff to resume the game.`,
+                        `After the goal, it's ${otherTeam === 'team1' ? team1Name : team2Name}'s turn to reset and restart the match.`,
+                        `A quick turnaround! ${otherTeam === 'team1' ? team1Name : team2Name} now has the opportunity to equalize.`,
+                        `The scoreline changes, and ${otherTeam === 'team1' ? team1Name : team2Name} restarts the game with determination.`,
+                        `The goal wakes up ${otherTeam === 'team1' ? team1Name : team2Name} as they prepare to reclaim possession and restart.`,
+                        `With the goal scored, ${otherTeam === 'team1' ? team1Name : team2Name} looks to respond by taking control of the ball again.`,
+                        `A chance for redemption! ${otherTeam === 'team1' ? team1Name : team2Name} initiates the game restart after conceding the goal.`,
+                        `After the goal, ${otherTeam === 'team1' ? team1Name : team2Name} begins again with a renewed sense of purpose and strategy.`
+                    ];
+                    var gameRestartPhrase = gameRestartPhrases[Math.floor(Math.random() * gameRestartPhrases.length)];
+                    eventPhrase += " " + gameRestartPhrase;
+            } else if (event === 'save') {
+                saves[eventTeam]++;
+                var savePhrases = [
+                    `What a save by ${eventPlayer}! ${eventPlayer} denies the opposing team's attempt.`,
+                    `Sensational save! ${eventPlayer} keeps ${eventTeam === 'team1' ? team1Name : team2Name} in the game.`,
+                    `Unbelievable reflexes by ${eventPlayer} to make the save and prevent a goal.`,
+                    `Stunning stop by ${eventPlayer}! The opposing team is denied a certain goal.`,
+                    `A crucial intervention by ${eventPlayer}! The game remains intense.`,
+                    `Brilliant goalkeeping! ${eventPlayer} preserves the team's lead.`,
+                    `Outstanding save by ${eventPlayer}! The crowd is in awe.`,
+                    `Incredible acrobatics by ${eventPlayer} to keep the ball out of the net.`,
+                    `A heroic save by ${eventPlayer}! It keeps the team's hopes alive.`,
+                    `Fantastic goalkeeping! ${eventPlayer} denies the opposition yet again.`
+                ];
+                eventPhrase = savePhrases[Math.floor(Math.random() * savePhrases.length)];
+            }
+
+            commentary.unshift({ phrase: eventPhrase, timestamp: timestamp });
+            displayCommentary();
+            displayAnalytics();
+        }
+
+        function displayCommentary() {
+            var commentaryDiv = document.getElementById('commentary');
+            commentaryDiv.innerHTML = '';
+            commentary.forEach(function(item) {
+                var p = document.createElement('p');
+                p.innerText = `${item.timestamp.toLocaleTimeString()} - ${item.phrase}`;
+                commentaryDiv.appendChild(p);
+            });
+        }
+
+        function displayAnalytics() {
+            var analyticsDiv = document.getElementById('analytics');
+            analyticsDiv.innerHTML = '';
+
+            var p = document.createElement('p');
+            p.innerText = `${team1Name} Goals: ${goals['team1']}, Saves: ${saves['team1']}`;
+            analyticsDiv.appendChild(p);
+
+            p = document.createElement('p');
+            p.innerText = `${team2Name} Goals: ${goals['team2']}, Saves: ${saves['team2']}`;
+            analyticsDiv.appendChild(p);
+        }
+        function startGame() {
+            // Disable the button and change its text to simulate a coin toss
+            var startButton = document.getElementById('start-game-button');
+            startButton.disabled = true;
+            startButton.textContent = "Tossing Coin...";
+
+            setTimeout(function() {
+                // Determine which team won the toss
+                var teams = ['team1', 'team2'];
+                var tossWinner = teams[Math.floor(Math.random() * teams.length)];
+
+                var tossWinnerName;
+                if(tossWinner === 'team1') {
+                    tossWinnerName = team1Name;
+                } else {
+                    tossWinnerName = team2Name;
+                }
+
+                // Random start phrases
+                var startPhrases = [
+                    tossWinnerName + ' won the toss! Let the game begin!',
+                    'And the match is underway! ' + tossWinnerName + ' starts with the ball!',
+                    'Kickoff! The game has started, and ' + tossWinnerName + ' takes the first turn!',
+                    tossWinnerName + ' won the toss and the whistle blows, we are off!',
+                    'Here we go! The game is on! ' + tossWinnerName + ' takes the first kick!',
+                    'And they\'re off! ' + tossWinnerName + ' won the toss and let the best team win!',
+                    tossWinnerName + ' starts the game with a coin toss win! The referee gives the signal and the match starts!'
+                ];
+
+                // Choose a random start phrase
+                var startPhrase = startPhrases[Math.floor(Math.random() * startPhrases.length)];
+
+                // Log start phrase to the commentary
+                commentary.unshift({ phrase: startPhrase, timestamp: new Date() });
+                displayCommentary();
+
+                // Re-enable the button and reset its text
+                startButton.disabled = false;
+                startButton.textContent = "Start Game";
+
+            }, 2000);
+        }
+
+
+        function finishGame() {
+            // Convert match details to CSV
+            var csvContent = 'data:text/csv;charset=utf-8,';
+            csvContent += 'Team,Player 1,Player 2,Goals,Saves\n';
+            csvContent += team1Name + ',' + team1Player1 + ',' + team1Player2 + ',' + goals['team1'] + ',' + saves['team1'] + '\n';
+            csvContent += team2Name + ',' + team2Player1 + ',' + team2Player2 + ',' + goals['team2'] + ',' + saves['team2'] + '\n';
+
+            // Format timestamp for filename
+            var timestamp = new Date();
+            var formattedTimestamp = timestamp.getFullYear() + '-' + (timestamp.getMonth() + 1) + '-' + timestamp.getDate() +
+                '_' + timestamp.getHours() + '-' + timestamp.getMinutes() + '-' + timestamp.getSeconds();
+
+            // Format team names for filename
+            var formattedTeam1Name = team1Name.replace(/\s+/g, '_');
+            var formattedTeam2Name = team2Name.replace(/\s+/g, '_');
+
+            // Create filename
+            var filename = 'match_details_' + formattedTeam1Name + '_vs_' + formattedTeam2Name + '_' + formattedTimestamp + '.csv';
+
+            // Download CSV file
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link); // Required for Firefox
+            link.click();
+        }
+
+    </script>
+    <div class="footer">
+            Developed by Vipul | Foosball Live Commentary and Analytics
+        </div>
+</body>
+</html>
